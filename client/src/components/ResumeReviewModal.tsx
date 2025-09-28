@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef,useEffect } from 'react';
 import { api } from '@/utils/api';
 import toast from 'react-hot-toast';
 import { X, FileText, User, Calendar, Star } from 'lucide-react';
@@ -38,6 +38,30 @@ export default function ResumeReviewModal({ resume, onClose, onUpdate }: ResumeR
   const [reviewNotes, setReviewNotes] = useState(resume.reviewNotes || '');
   const [tags, setTags] = useState(resume.tags.join(', ') || '');
   const [loading, setLoading] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPdf = async () => {
+      try {
+        const response = await api.get(`/resumes/${resume._id}/download`, {
+          responseType: 'blob',
+        });
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        setPdfUrl(url);
+      } catch (error) {
+        console.error('Failed to load PDF:', error);
+      }
+    };
+
+    loadPdf();
+
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [resume._id, pdfUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,11 +175,20 @@ export default function ResumeReviewModal({ resume, onClose, onUpdate }: ResumeR
             </div>
             <div className="p-4 bg-gray-50">
               <div className="flex justify-center">
-                <iframe
-                  src={`/api/resumes/${resume._id}/download`}
-                  className="w-full h-96 border border-gray-300 rounded"
-                  title="Resume Preview"
-                />
+                {pdfUrl ? (
+                  <iframe
+                    src={pdfUrl}
+                    className="w-full h-96 border border-gray-300 rounded"
+                    title="Resume Preview"
+                  />
+                ) : (
+                  <div className="w-full h-96 border border-gray-300 rounded flex items-center justify-center bg-gray-50">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2" />
+                      <p className="text-gray-600">Loading PDF preview...</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

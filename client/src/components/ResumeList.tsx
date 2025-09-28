@@ -18,9 +18,10 @@ interface Resume {
 
 interface ResumeListProps {
   onRefresh?: () => void;
+  onDownload?: (resumeId: string, originalName: string) => void;
 }
 
-export default function ResumeList({ onRefresh }: ResumeListProps) {
+export default function ResumeList({ onRefresh, onDownload }: ResumeListProps) {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -117,14 +118,13 @@ export default function ResumeList({ onRefresh }: ResumeListProps) {
               </div>
             </div>
             <div className="ml-4 flex space-x-2">
-              <a
-                href={`/api/resumes/${resume._id}/download`}
+              <button
+                onClick={() => onDownload?.(resume._id, resume.originalName)}
                 className="btn-secondary text-sm flex items-center"
-                download
               >
                 <Download className="w-4 h-4 mr-1" />
                 Download
-              </a>
+              </button>
             </div>
           </div>
         </div>

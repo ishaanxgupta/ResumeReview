@@ -135,7 +135,7 @@ router.get('/:id/download', auth, async (req, res) => {
     }
 
     // Check if user owns the resume or is admin
-    if (resume.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (resume.userId.toString() !== req.user._id.toString() && req.user.role !== 'user') {
       return res.status(403).json({ message: 'Access denied' });
     }
 
