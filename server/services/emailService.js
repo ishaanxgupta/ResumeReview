@@ -1,33 +1,13 @@
-const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const sgMail = require('@sendgrid/mail');
 
-// Create transporter
-const createTransporter = () => {
-  const port = Number(process.env.EMAIL_PORT || 587);
-  const secure = port === 465; // 465 uses implicit TLS; 587 uses STARTTLS
-
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port,
-    secure,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    },
-    // Improve reliability in PaaS environments
-    requireTLS: !secure,
-    pool: true,
-    maxConnections: 3,
-    maxMessages: 50,
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-    tls: {
-      servername: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      minVersion: 'TLSv1.2',
-      rejectUnauthorized: true
-    }
-  });
+// SendGrid sender
+const sendWithSendGrid = async (toEmail, subject, html, fromEmail) => {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error('SENDGRID_API_KEY is required');
+  if (!fromEmail) throw new Error('FROM_EMAIL is required');
+  sgMail.setApiKey(apiKey);
+  await sgMail.send({ from: fromEmail, to: toEmail, subject, html });
 };
 
 // Generate magic link token
@@ -38,17 +18,12 @@ const generateMagicLinkToken = () => {
 // Send magic link email
 const sendMagicLink = async (email, token, name) => {
   try {
-    const transporter = createTransporter();
-    // Fail fast if server not reachable or TLS/auth issues
-    try {
-      await transporter.verify();
-    } catch (verifyErr) {
-      console.warn('SMTP verify failed:', verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
-    }
+    const fromEmail = process.env.FROM_EMAIL;
     const magicLink = `${process.env.FRONTEND_URL}/auth/verify?token=${token}`;
+    console.log(`Magic link for ${email}: ${magicLink}`);
     
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: fromEmail,
       to: email,
       subject: 'Login to Resume Review Platform',
       html: `
@@ -70,7 +45,7 @@ const sendMagicLink = async (email, token, name) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendWithSendGrid(mailOptions.to, mailOptions.subject, mailOptions.html, mailOptions.from);
     console.log('Magic link email sent successfully');
     return true;
   } catch (error) {
@@ -82,7 +57,7 @@ const sendMagicLink = async (email, token, name) => {
 // Send notification email for resume status change
 const sendStatusNotification = async (email, name, status, notes = '') => {
   try {
-    const transporter = createTransporter();
+    const fromEmail = process.env.FROM_EMAIL;
     
     const statusMessages = {
       'approved': 'Congratulations! Your resume has been approved.',
@@ -92,7 +67,7 @@ const sendStatusNotification = async (email, name, status, notes = '') => {
     };
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: fromEmail,
       to: email,
       subject: `Resume Status Update: ${status.replace('_', ' ').toUpperCase()}`,
       html: `
@@ -110,7 +85,7 @@ const sendStatusNotification = async (email, name, status, notes = '') => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendWithSendGrid(mailOptions.to, mailOptions.subject, mailOptions.html, mailOptions.from);
     console.log('Status notification email sent successfully');
     return true;
   } catch (error) {
@@ -124,3 +99,5 @@ module.exports = {
   sendMagicLink,
   sendStatusNotification
 };
+
+
