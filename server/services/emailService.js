@@ -3,13 +3,29 @@ const crypto = require('crypto');
 
 // Create transporter
 const createTransporter = () => {
+  const port = Number(process.env.EMAIL_PORT || 587);
+  const secure = port === 465; // 465 uses implicit TLS; 587 uses STARTTLS
+
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
-    secure: false,
+    port,
+    secure,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
+    },
+    // Improve reliability in PaaS environments
+    requireTLS: !secure,
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 50,
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+    tls: {
+      servername: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      minVersion: 'TLSv1.2',
+      rejectUnauthorized: true
     }
   });
 };
@@ -23,6 +39,12 @@ const generateMagicLinkToken = () => {
 const sendMagicLink = async (email, token, name) => {
   try {
     const transporter = createTransporter();
+    // Fail fast if server not reachable or TLS/auth issues
+    try {
+      await transporter.verify();
+    } catch (verifyErr) {
+      console.warn('SMTP verify failed:', verifyErr && verifyErr.message ? verifyErr.message : verifyErr);
+    }
     const magicLink = `${process.env.FRONTEND_URL}/auth/verify?token=${token}`;
     
     const mailOptions = {
