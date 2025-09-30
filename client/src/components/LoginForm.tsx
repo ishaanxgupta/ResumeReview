@@ -27,7 +27,7 @@ export default function LoginForm() {
       if (isAdmin) {
         // Create admin user via API
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/create-admin`, {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/admin/create-admin`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
